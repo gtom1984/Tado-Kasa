@@ -1,7 +1,7 @@
 # Tado-Kasa
-Simple AWS Lambda Python script to turn on/off a smart plug if Tado humidity is over a threshold
+***Simple AWS Lambda Python script to turn on/off a smart plug if Tado humidity is over a threshold***
 
-Requirements:
+**Requirements:**
 TADO Smart Thermostat and Tado account
 
 TP-Link HS110 Smart Plug and Kasa cloud account
@@ -10,7 +10,7 @@ A dehumidifier to plug into the smart plug
 
 Amazon Web Services account
 
-How it works:
+**How it works:**
 - A cloud watch event is run every 4 hours (or whenever you choose).
 - The event triggers the Python Lambda script (with KMS keys to encrypt the account passwords)
 - The Tado's humidity will be read from the cloud account
@@ -19,7 +19,7 @@ How it works:
 
 The humidity and plug's responses are recorded in the AWS Cloud Watch logs
 
-Configuration:
+**Configuration:**
 All configuration is handled by AWS Lambda's environment variables
 
 - HUMIDITY_THRESHOLD = provide a float

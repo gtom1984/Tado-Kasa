@@ -22,10 +22,10 @@ The humidity and plug's responses are recorded in the AWS Cloud Watch logs
 Configuration:
 All configuration is handled by AWS Lambda's environment variables
 
-HUMIDITY_THRESHOLD = provide a float
-TADO_USERNAME = plain text username (your email)
-TADO_PASSWORD = your Tado account's password, be sure to enabled KMS encryption the script assumes you did!
-KASA_USERNAME = plain text username (your email)
-KASA_PASSWORD = your Kasa account's password, be sure to enabled KMS encryption the script assumes you did!
-KASA_DEVICE_ALIAS = the device's alias as set in the iOS or Android Kasa app, this is a simple plain text name for your plug, make it unique or the script will pick the first one
-KASA_REGION_URL = Your region's URL for your account (this was tested with "https://eu-wap.tplinkcloud.com/")
+- HUMIDITY_THRESHOLD = provide a float
+- TADO_USERNAME = plain text username (your email)
+- TADO_PASSWORD = your Tado account's password, be sure to enabled KMS encryption the script assumes you did!
+- KASA_USERNAME = plain text username (your email)
+- KASA_PASSWORD = your Kasa account's password, be sure to enabled KMS encryption the script assumes you did!
+- KASA_DEVICE_ALIAS = the device's alias as set in the iOS or Android Kasa app, this is a simple plain text name for your plug, make it unique or the script will pick the first one
+- KASA_REGION_URL = Your region's URL for your account (this was tested with "https://eu-wap.tplinkcloud.com/")

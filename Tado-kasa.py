@@ -97,7 +97,6 @@ def set_kasa_device(token, device, state=0):
     return response.text
 
 
-
 def get_kasa_device_power_usage(token, device):
     # IMPORTANT: The device is very picky about the JSON format for the actual commands
     data = {
@@ -147,7 +146,6 @@ def send_email(region, sender, recipient):
             },
             Source=sender,
         )
-
 
 
 def lambda_handler(event, context):

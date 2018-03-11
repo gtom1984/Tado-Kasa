@@ -152,9 +152,12 @@ def send_email(region, sender, recipient, message):
 
 def lambda_handler(event, context):
     try:
-        humidity = get_humidity(get_tado_token(TADO_USERNAME, TADO_PASSWORD))
-        kasa_device = get_kasa_device(get_kasa_token(KASA_USERNAME, KASA_PASSWORD), KASA_DEVICE_ALIAS)
+        tado_token = get_tado_token(TADO_USERNAME, TADO_PASSWORD)
+        humidity = get_humidity(tado_token)
+        
         kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
+        kasa_device = get_kasa_device(kasa_token, KASA_DEVICE_ALIAS)
+
         if humidity > HUMIDITY_THRESHOLD:
             # Turn on if over threshold
             result = set_kasa_device(kasa_token, kasa_device, 1)

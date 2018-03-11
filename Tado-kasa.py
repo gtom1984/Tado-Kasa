@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import boto3
+import time
 from base64 import b64decode
 from botocore.vendored import requests
 
@@ -157,12 +158,15 @@ def lambda_handler(event, context):
         kasa_device = get_kasa_device(kasa_token, KASA_DEVICE_ALIAS)
 
         if humidity > HUMIDITY_THRESHOLD:
-            # Turn on if over threshold
+            # Turn on if over threshold and send email alert
             send_email(AWS_REGION, SENDER, RECIPIENT, "Humidity over threshold, activating dehumidifier")
             result = set_kasa_device(kasa_token, kasa_device, 1)
+            
+            # Wait 30 seconds before checking current for accuracy
+            time.sleep(30)
             current = get_kasa_device_power_usage(kasa_token, kasa_device)
     
-            # Turn back off and email if current is low
+            # Turn back off and send email alert if current is low
             if current < float(CURRENT_ALERT):
                 send_email(AWS_REGION, SENDER, RECIPIENT, "Dehumidifer might need water emptied")
                 result = set_kasa_device(kasa_token, kasa_device, 0)

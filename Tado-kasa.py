@@ -156,14 +156,18 @@ def lambda_handler(event, context):
         kasa_device = get_kasa_device(get_kasa_token(KASA_USERNAME, KASA_PASSWORD), KASA_DEVICE_ALIAS)
         kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
         if humidity > HUMIDITY_THRESHOLD:
+            # Turn on if over threshold
             result = set_kasa_device(kasa_token, kasa_device, 1)
             current = get_kasa_device_power_usage(kasa_token, kasa_device)
     
+            # Turn back off and email if current is low
             if current < float(CURRENT_ALERT):
                 send_email(AWS_REGION, SENDER, RECIPIENT, "Dehumidifer might need water emptied")
+                result = set_kasa_device(kasa_token, kasa_device, 0)
       
             return "Humidity: " + str(humidity) + " " + result
         else:
+            # Turn off if below threshold
             return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 0)
     except Exception as ex:
         send_email(AWS_REGION, SENDER, RECIPIENT, str(ex))

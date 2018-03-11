@@ -98,6 +98,22 @@ def set_kasa_device(token, device, state=0):
     return response.text
 
 
+def get_kasa_device_state(token, device):
+    # IMPORTANT: The device is very picky about the JSON format for the actual commands
+    data = {
+        "method": "passthrough",
+        "params": {
+            "deviceId": device['id'],
+            "requestData": "{\"system\":{\"get_sysinfo\":{}}}"
+        }
+    }
+    response = requests.post(device['url'] + "?token=" + token, json=data)
+    data = json.loads(response.text)
+    data_unformated = data['result']['responseData'].replace("\\", "")
+    data_formated = json.loads(data_unformated)
+    return data_formated['system']['get_sysinfo']['relay_state']
+
+
 def get_kasa_device_power_usage(token, device):
     # IMPORTANT: The device is very picky about the JSON format for the actual commands
     data = {
@@ -156,24 +172,37 @@ def lambda_handler(event, context):
         
         kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
         kasa_device = get_kasa_device(kasa_token, KASA_DEVICE_ALIAS)
+        kasa_device_state = get_kasa_device_state(kasa_token, kasa_device)
 
         if humidity > HUMIDITY_THRESHOLD:
-            # Turn on if over threshold and send email alert
+            # Turn on if over threshold
             send_email(AWS_REGION, SENDER, RECIPIENT, "Humidity over threshold, activating dehumidifier")
-            result = set_kasa_device(kasa_token, kasa_device, 1)
             
-            # Wait 30 seconds before checking current for accuracy
+            if kasa_device_state == 0:
+                set_kasa_device(kasa_token, kasa_device, 1)
+                result = "device turned on"
+            else:
+                result = "device already running"
+
+            # Wait 30 seconds before checking current
             time.sleep(30)
             current = get_kasa_device_power_usage(kasa_token, kasa_device)
     
-            # Turn back off and send email alert if current is low
+            # Turn off and email if current is low
             if current < float(CURRENT_ALERT):
                 send_email(AWS_REGION, SENDER, RECIPIENT, "Dehumidifer might need water emptied")
-                result = set_kasa_device(kasa_token, kasa_device, 0)
+                set_kasa_device(kasa_token, kasa_device, 0)
+                result = "device turned off because of low current"
       
             return "Humidity: " + str(humidity) + " " + result
         else:
             # Turn off if below threshold
-            return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 0)
+            if kasa_device_state == 1:
+                result = "device turned off"
+                set_kasa_device(kasa_token, kasa_device, 0)
+            else:
+                result = "device already off"
+
+            return "Humidity: " + str(humidity) + " " + result
     except Exception as ex:
         send_email(AWS_REGION, SENDER, RECIPIENT, str(ex))

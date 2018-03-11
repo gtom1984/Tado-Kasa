@@ -97,6 +97,7 @@ def set_kasa_device(token, device, state=0):
     return response.text
 
 
+
 def get_kasa_device_power_usage(token, device):
     # IMPORTANT: The device is very picky about the JSON format for the actual commands
     data = {
@@ -113,12 +114,12 @@ def get_kasa_device_power_usage(token, device):
     return data_formated['emeter']['get_realtime']['current']
 
 
-def send_email(region, sender, recipient):
+def send_email(region, sender, recipient, message):
     # The subject line for the email.
-    SUBJECT = "Low current"
+    SUBJECT = "Tado-Kasa Alert"
 
     # The email body for recipients with non-HTML email clients.
-    BODY_TEXT = ("Dehumidifer might need water emptied")
+    BODY_TEXT = (message)
 
     # The character encoding for the email.
     CHARSET = "UTF-8"
@@ -148,18 +149,21 @@ def send_email(region, sender, recipient):
         )
 
 
+
 def lambda_handler(event, context):
-    humidity = get_humidity(get_tado_token(TADO_USERNAME, TADO_PASSWORD))
-    kasa_device = get_kasa_device(get_kasa_token(KASA_USERNAME, KASA_PASSWORD), KASA_DEVICE_ALIAS)
-    kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
-
-    if humidity > HUMIDITY_THRESHOLD:
-        result = set_kasa_device(kasa_token, kasa_device, 1)
-        current = get_kasa_device_power_usage(kasa_token, kasa_device)
-
-        if current < float(CURRENT_ALERT):
-            send_email(AWS_REGION, SENDER, RECIPIENT)
-  
-        return "Humidity: " + str(humidity) + " " + result
-    else:
-        return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 0)
+    try:
+        humidity = get_humidity(get_tado_token(TADO_USERNAME, TADO_PASSWORD))
+        kasa_device = get_kasa_device(get_kasa_token(KASA_USERNAME, KASA_PASSWORD), KASA_DEVICE_ALIAS)
+        kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
+        if humidity > HUMIDITY_THRESHOLD:
+            result = set_kasa_device(kasa_token, kasa_device, 1)
+            current = get_kasa_device_power_usage(kasa_token, kasa_device)
+    
+            if current < float(CURRENT_ALERT):
+                send_email(AWS_REGION, SENDER, RECIPIENT, "Dehumidifer might need water emptied")
+      
+            return "Humidity: " + str(humidity) + " " + result
+        else:
+            return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 0)
+    except Exception as ex:
+        send_email(AWS_REGION, SENDER, RECIPIENT, str(ex))

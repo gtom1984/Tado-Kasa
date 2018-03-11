@@ -158,6 +158,7 @@ def lambda_handler(event, context):
 
         if humidity > HUMIDITY_THRESHOLD:
             # Turn on if over threshold
+            send_email(AWS_REGION, SENDER, RECIPIENT, "Humidity over threshold, activating dehumidifier")
             result = set_kasa_device(kasa_token, kasa_device, 1)
             current = get_kasa_device_power_usage(kasa_token, kasa_device)
     

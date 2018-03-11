@@ -6,6 +6,7 @@ from base64 import b64decode
 from botocore.vendored import requests
 
 HUMIDITY_THRESHOLD = float(os.environ['HUMIDITY_THRESHOLD'])
+CURRENT_ALERT = os.environ['CURRENT_ALERT']
 
 TADO_USERNAME = os.environ['TADO_USERNAME']
 TADO_PASSWORD = boto3.client('kms').decrypt(CiphertextBlob=b64decode(os.environ['TADO_PASSWORD']))['Plaintext'].decode("UTF-8")
@@ -14,6 +15,9 @@ KASA_USERNAME = os.environ['KASA_USERNAME']
 KASA_PASSWORD = boto3.client('kms').decrypt(CiphertextBlob=b64decode(os.environ['KASA_PASSWORD']))['Plaintext'].decode("UTF-8")
 KASA_DEVICE_ALIAS = os.environ['KASA_DEVICE']
 KASA_REGION_URL = os.environ['KASA_URL']
+SENDER = "Dehumidifier <" + os.environ['SENDER_EMAIL'] + ">"
+RECIPIENT = os.environ['RECIPIENT_EMAIL']
+AWS_REGION = os.environ['AWS_REGION']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -93,12 +97,71 @@ def set_kasa_device(token, device, state=0):
     return response.text
 
 
+
+def get_kasa_device_power_usage(token, device):
+    # IMPORTANT: The device is very picky about the JSON format for the actual commands
+    data = {
+        "method": "passthrough",
+        "params": {
+            "deviceId": device['id'],
+            "requestData": "{\"emeter\":{\"get_realtime\":{}}}"
+        }
+    }
+    response = requests.post(device['url'] + "?token=" + token, json=data)
+    data = json.loads(response.text)
+    data_unformated = data['result']['responseData'].replace("\\", "")
+    data_formated = json.loads(data_unformated)
+    return data_formated['emeter']['get_realtime']['current']
+
+
+def send_email(region, sender, recipient):
+    # The subject line for the email.
+    SUBJECT = "Low current"
+
+    # The email body for recipients with non-HTML email clients.
+    BODY_TEXT = ("Dehumidifer might need water emptied")
+
+    # The character encoding for the email.
+    CHARSET = "UTF-8"
+
+    # Create a new SES resource and specify a region.
+    client = boto3.client('ses', region_name=region)
+
+    client.send_email(
+            Destination={
+                'ToAddresses': [
+                    recipient,
+                ],
+            },
+            Message={
+                'Body': {
+                    'Text': {
+                        'Charset': CHARSET,
+                        'Data': BODY_TEXT,
+                    },
+                },
+                'Subject': {
+                    'Charset': CHARSET,
+                    'Data': SUBJECT,
+                },
+            },
+            Source=sender,
+        )
+
+
+
 def lambda_handler(event, context):
     humidity = get_humidity(get_tado_token(TADO_USERNAME, TADO_PASSWORD))
     kasa_device = get_kasa_device(get_kasa_token(KASA_USERNAME, KASA_PASSWORD), KASA_DEVICE_ALIAS)
     kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
 
     if humidity > HUMIDITY_THRESHOLD:
-        return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 1)
+        result = set_kasa_device(kasa_token, kasa_device, 1)
+        current = get_kasa_device_power_usage(kasa_token, kasa_device)
+
+        if current < float(CURRENT_ALERT):
+            send_email(AWS_REGION, SENDER, RECIPIENT)
+  
+        return "Humidity: " + str(humidity) + " " + result
     else:
         return "Humidity: " + str(humidity) + " " + set_kasa_device(kasa_token, kasa_device, 0)

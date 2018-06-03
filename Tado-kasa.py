@@ -7,6 +7,7 @@ from base64 import b64decode
 from botocore.vendored import requests
 
 HUMIDITY_THRESHOLD = float(os.environ['HUMIDITY_THRESHOLD'])
+TEMPERATURE_THRESHOLD = float(os.environ['TEMPERATURE_THRESHOLD'])
 CURRENT_ALERT = os.environ['CURRENT_ALERT']
 
 TADO_USERNAME = os.environ['TADO_USERNAME']
@@ -52,6 +53,19 @@ def get_humidity(token):
     response = requests.get("https://my.tado.com/api/v2/homes/" + home_id + "/zones/1/state", headers=headers)
     json_data = json.loads(response.text)
     return json_data['sensorDataPoints']['humidity']['percentage']
+    
+def get_temperature(token):
+    headers = {"Authorization": "Bearer " + token}
+
+    # Get Home ID
+    response = requests.get("https://my.tado.com/api/v2/me", headers=headers)
+    json_data = json.loads(response.text)
+    home_id = str(json_data['homes'][0]['id'])
+
+    # Get Humidity
+    response = requests.get("https://my.tado.com/api/v2/homes/" + home_id + "/weather", headers=headers)
+    json_data = json.loads(response.text)
+    return json_data['outsideTemperature']['celsius']
 
 
 def get_kasa_token(username, password):
@@ -165,17 +179,19 @@ def send_email(region, sender, recipient, message):
         )
 
 
+
 def lambda_handler(event, context):
     try:
         tado_token = get_tado_token(TADO_USERNAME, TADO_PASSWORD)
         humidity = get_humidity(tado_token)
+        temperature = get_temperature(tado_token)
         
         kasa_token = get_kasa_token(KASA_USERNAME, KASA_PASSWORD)
         kasa_device = get_kasa_device(kasa_token, KASA_DEVICE_ALIAS)
         kasa_device_state = get_kasa_device_state(kasa_token, kasa_device)
 
-        if humidity > HUMIDITY_THRESHOLD:
-            # Turn on if over threshold
+        if humidity > HUMIDITY_THRESHOLD and temperature < TEMPERATURE_THRESHOLD:
+            # Turn on if over threshold and under temperature threshold
             send_email(AWS_REGION, SENDER, RECIPIENT, "Humidity over threshold, activating dehumidifier")
             
             if kasa_device_state == 0:
@@ -194,7 +210,7 @@ def lambda_handler(event, context):
                 set_kasa_device(kasa_token, kasa_device, 0)
                 result = "device turned off because of low current"
       
-            return "Humidity: " + str(humidity) + " " + result
+            return "Humidity: " + str(humidity) + " Temperature: " + str(temperature) + " " + result
         else:
             # Turn off if below threshold
             if kasa_device_state == 1:
@@ -203,6 +219,6 @@ def lambda_handler(event, context):
             else:
                 result = "device already off"
 
-            return "Humidity: " + str(humidity) + " " + result
+            return "Humidity: " + str(humidity) + " Temperature: " + str(temperature) + " " + result
     except Exception as ex:
         send_email(AWS_REGION, SENDER, RECIPIENT, str(ex))
